@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="1a562959-d35c-4d69-a55b-4218c5b4625c" >
+		<salesforce:jwt-connection storePassword="Minlopro@!23" principal="yogesh.mulchandani@minlopro.com.wipdev" consumerKey="3MVG9rzI_srm0a0STjQZHQKgtGJxo1l7p6M_YS.TU0Cl1_o3vuhL5j8hx_EAMJmjbXEuRGOmPo07EMnkjlAnL" keyStore="keystore1.jks" tokenEndpoint="https://test.salesforce.com/services/oauth2/token"/>
+	</salesforce:sfdc-config>
+	<http:request-config name="HTTP_Request_config" doc:name="HTTP Request config" doc:id="78cd2515-c3c5-45fb-80d9-0d6744f7607b" >
+		<http:request-connection protocol="HTTPS" host="oauth2.googleapis.com" port="443" />
+	</http:request-config>
+</mule>

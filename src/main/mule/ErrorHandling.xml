@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<error-handler name="ErrorHandlingError_Handler" doc:id="368779c6-8293-4156-a05c-2ddfce0abb0d" >
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="7e8d0b21-1fe4-4121-92ed-b0053a4c0486" >
+			<logger level="INFO" doc:name="Logger" doc:id="675ad8aa-2633-449a-b286-db13b49de712" />
+		</on-error-continue>
+	</error-handler>
+	<error-handler name="ErrorHandlingError_Handler1" doc:id="0aaf59d3-052f-4d5b-a885-5047e855d906" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="ded19ed7-ee36-452a-a39a-38deaf510100" >
+			<logger level="INFO" doc:name="Logger" doc:id="3ef19916-454b-494e-8b06-4d96698d73c9" />
+		</on-error-propagate>
+	</error-handler>
+</mule>
