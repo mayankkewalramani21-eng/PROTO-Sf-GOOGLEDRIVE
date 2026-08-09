@@ -1,14 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
-	xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
-http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
 	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="1a562959-d35c-4d69-a55b-4218c5b4625c" >
-		<salesforce:jwt-connection storePassword="Minlopro@!23" principal="yogesh.mulchandani@minlopro.com.wipdev" consumerKey="3MVG9rzI_srm0a0STjQZHQKgtGJxo1l7p6M_YS.TU0Cl1_o3vuhL5j8hx_EAMJmjbXEuRGOmPo07EMnkjlAnL" keyStore="keystore1.jks" tokenEndpoint="https://test.salesforce.com/services/oauth2/token"/>
+		<salesforce:jwt-connection storePassword="${secure::sf.storePassword}" principal="${sf.principal}" consumerKey="${secure::sf.consumerKey}" keyStore="keystore1.jks" tokenEndpoint="${sf.tokenEndpoint}"/>
 	</salesforce:sfdc-config>
-	<http:request-config name="HTTP_Request_config" doc:name="HTTP Request config" doc:id="78cd2515-c3c5-45fb-80d9-0d6744f7607b" >
-		<http:request-connection protocol="HTTPS" host="oauth2.googleapis.com" port="443" />
+	<http:request-config name="HTTP_Request_config_Token" doc:name="HTTP Request config" doc:id="78cd2515-c3c5-45fb-80d9-0d6744f7607b" >
+		<http:request-connection protocol="HTTPS" host="${GDaccessToken.host}" port="${GD.port}" />
 	</http:request-config>
+	<http:request-config name="HTTP_Request_config2_Folders" doc:name="HTTP Request config" doc:id="a9072f37-531d-477d-b4f0-bcd401fe888f" >
+		<http:request-connection host="${GDConnector.host}" port="${GD.port}" protocol="HTTPS"/>
+	</http:request-config>
+	<configuration doc:name="Configuration" doc:id="72209931-4c93-4e8a-972a-5b8fd64a72b5" defaultErrorHandler-ref="ErrorHandlingError_Handler_continue" />
+	
+	<configuration-properties doc:name="Configuration properties" doc:id="3988a874-b890-4a3b-8fc7-ddba7880883a" file="Properties/common.yaml" />
+	<configuration-properties doc:name="Configuration properties" doc:id="6f19f6d6-ada6-4529-bc13-27d35aeab7eb" file="Properties/${mule.env}.yaml" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="b1b554aa-4080-4d4b-ba21-ecd75d672988" file="Properties/${mule.env}.yaml" key="${mule.key}"/>
+	<os:config name="ObjectStore_Config1" doc:name="ObjectStore Config" doc:id="0cb317f2-3e6d-42de-a0f5-c104e7853001" >
+		<os:connection />
+	</os:config>
+	<os:object-store name="Object_store1" doc:name="Object store" doc:id="28e010e6-f8d8-4008-bf15-e995cd606e61" maxEntries="${objectstore.maxEntries}" entryTtl="${objectstore.EntryTTL}" expirationInterval="5" config-ref="ObjectStore_Config1" />
 </mule>

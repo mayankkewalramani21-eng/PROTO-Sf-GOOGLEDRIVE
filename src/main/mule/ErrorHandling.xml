@@ -4,14 +4,38 @@
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
-	<error-handler name="ErrorHandlingError_Handler" doc:id="368779c6-8293-4156-a05c-2ddfce0abb0d" >
+	<error-handler name="ErrorHandlingError_Handler_continue" doc:id="368779c6-8293-4156-a05c-2ddfce0abb0d" >
 		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="7e8d0b21-1fe4-4121-92ed-b0053a4c0486" >
-			<logger level="INFO" doc:name="Logger" doc:id="675ad8aa-2633-449a-b286-db13b49de712" />
+			<logger level="ERROR" doc:name="Logger" doc:id="675ad8aa-2633-449a-b286-db13b49de712" message='#[%dw 2.0&#10;output application/java&#10;---&#10;"ERROR | Flow: proto-sf-to-gdFlow"&#10;++ " | Error Type: " &#10;++ (error.errorType.namespace ++ ":" ++ error.errorType.identifier)&#10;++ " | Description: " &#10;++ (error.description default "No description")&#10;++ " | Detailed Description: " &#10;++ (error.detailedDescription default "No detailed description")]'/>
+			<ee:transform doc:name="Transform Message" doc:id="891c336e-f354-46a6-823e-bb6edc061aea" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: false,
+    errorType: error.errorType.namespace ++ ":" ++ error.errorType.identifier,
+    description: error.description,
+    detailedDescription: error.detailedDescription,
+    flowName: "proto-sf-to-gdFlow"
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<logger level="INFO" doc:name="Logger" doc:id="a7822cdb-95d7-46c0-a338-872178c5b50d" message="Completed"/>
 		</on-error-continue>
 	</error-handler>
-	<error-handler name="ErrorHandlingError_Handler1" doc:id="0aaf59d3-052f-4d5b-a885-5047e855d906" >
-		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="ded19ed7-ee36-452a-a39a-38deaf510100" >
-			<logger level="INFO" doc:name="Logger" doc:id="3ef19916-454b-494e-8b06-4d96698d73c9" />
+	<error-handler name="ErrorHandlingError_Handler" doc:id="28d9f4ba-7d63-4c42-9593-91a23d7f6c91" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="94b8dddd-5ea8-4cc8-949a-c693eb5de26d" >
+			<logger level="INFO" doc:name="Logger" doc:id="a4999782-b561-45cd-ba15-55d6e74e20ea" message='#[%dw 2.0&#10;output application/java&#10;---&#10;"ERROR | Flow: proto-sf-to-gdFlow"&#10;++ " | Error Type: " &#10;++ (error.errorType.namespace ++ ":" ++ error.errorType.identifier)&#10;++ " | Description: " &#10;++ (error.description default "No description")&#10;++ " | Detailed Description: " &#10;++ (error.detailedDescription default "No detailed description")]'/>
+			<!-- [STUDIO:"Transform Message"]<ee:transform doc:name="Transform Message" doc:id="5a451586-9e8a-466f-b728-664d04aa078d" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+payload&#93;&#93;></ee:set-payload>
+				</ee:message>
+			</ee:transform> [STUDIO] -->
+			<!-- [STUDIO:"Logger"]<logger level="INFO" doc:name="Logger" doc:id="6c6b510f-da0b-4cd4-a01d-c7d180dbef95" message="completed"/> [STUDIO] -->
 		</on-error-propagate>
 	</error-handler>
 </mule>

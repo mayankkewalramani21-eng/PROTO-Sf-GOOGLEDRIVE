@@ -1,0 +1,24 @@
+
+# Google Drive Path and Port
+GD:
+  TokenPath: "/token"
+  FilePathMain: "/drive/v3/drives"
+  FilePathSub: "/drive/v3/files"
+  port: "443"  
+
+# Until SuccessFul Connector    
+UntilSuccess:
+  maxRetries: "3"
+  delay: "6000"  
+
+# Name of the folder
+drive:
+  rootFolderName: "SalesforceTest"
+  opportunityFolder: "OPPORTUNITY"
+  projectFolder: "PROJECT"   
+  
+# Object store 
+objectstore:
+  maxEntries: "100"
+  EntryTTL: "3600"
+      
