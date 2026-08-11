@@ -19,4 +19,17 @@ GDaccessTokenCred:
 # Google Drive Folders  connector configuration 
 GDConnector:
   host: "www.googleapis.com"
+  
+# Name of the folder
+drive:
+  rootFolderName: "SalesforceTest"
+  opportunityFolder: "OPPORTUNITY"
+  projectFolder: "PROJECT"  
+  
+# Alphabet Folders ID
+AplhabetID:
+  firstfolder: "1L8iJUnxBcjXwqLpM5WMLxwqj8JtzzQlh"
+  secondfolder: "1dS31wxJaHMyMyz6KII-EV5n85-Bap46I"
+  thirdfolder: "11nthPazHGYs7L_JrvKAfvpgPrCuj0Z7E"
+          
     

@@ -8,19 +8,10 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 http://www.mulesoft.org/schema/mule/google-drive http://www.mulesoft.org/schema/mule/google-drive/current/mule-google-drive.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
-	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="35ac0ad9-8a28-4e22-9a84-43d23ff86b9f" >
-		<http:listener-connection host="0.0.0.0" port="8081" />
-	</http:listener-config>
-	<google-drive:config name="Google_Drive_Connector_Config" doc:name="Google Drive Connector Config" doc:id="2c5a3098-0484-401c-825e-2837960d9c2c" >
-		<google-drive:oauth2-connection >
-			<google-drive:oauth-authorization-code consumerKey="1031996435053-8m4b56qo1hpqipbuiv6s5l1g6bc2ou53.apps.googleusercontent.com" consumerSecret="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" />
-			<google-drive:oauth-callback-config listenerConfig="HTTP_Listener_config" callbackPath="callback" authorizePath="authorize" />
-		</google-drive:oauth2-connection>
-	</google-drive:config>
-	<flow name="proto-sf-to-gdFlow" doc:id="b5d834de-bf0b-4bb0-a4b4-07df827851b1" >
+	<flow name="salesforce-proto-sf-to-gd-mainflow" doc:id="b5d834de-bf0b-4bb0-a4b4-07df827851b1" >
 		<salesforce:replay-channel-listener doc:id="bc5177d1-0da9-4eb3-8801-766df1dd847d" config-ref="Salesforce_Config" replayOption="ONLY_NEW" streamingChannel="/event/GoogleDriveIntegration__e"/>
-		<logger level="INFO" doc:name="Logger" doc:id="ce3669bd-cf21-437b-a741-ab688fb31baf" message="#[payload]"/>
-		<ee:transform doc:name="Transform Message" doc:id="92703b7f-cb24-44d9-90cd-296c5253f4f2" >
+		<logger level="INFO" doc:name="OpportunityId" doc:id="ce3669bd-cf21-437b-a741-ab688fb31baf" message="#[payload]"/>
+		<ee:transform doc:name="Query Name" doc:id="92703b7f-cb24-44d9-90cd-296c5253f4f2" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/java
@@ -28,194 +19,227 @@ output application/java
 "SELECT Account.Name FROM Opportunity WHERE Id = '" ++ payload.data.payload.opportunity_Id__c ++ "'"]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<logger level="INFO" doc:name="Query" doc:id="3dc06933-664b-4bc5-b692-d486fa31845b" message="#[payload]"/>
-		<salesforce:query doc:name="Query Account Name using opp ID" doc:id="8d72d0e9-d48c-476f-9217-e7bf5c6eaa68" config-ref="Salesforce_Config">
-			<salesforce:salesforce-query ><![CDATA[#[payload]]]></salesforce:salesforce-query>
+		<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="3339c46d-678f-4aba-9466-e250684c422d" millisBetweenRetries="${UntilSuccess.delay}">
+			<salesforce:query doc:name="Query Account Name using opp ID" doc:id="8d72d0e9-d48c-476f-9217-e7bf5c6eaa68" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[#[payload]]]></salesforce:salesforce-query>
 		</salesforce:query>
-		<flow-ref doc:name="Flow Reference" doc:id="bdf42a06-634d-4a2d-b3bc-58c1b4e20487" name="proto-sf-to-gdFlow1(choice-Router)"/>
+		</until-successful>
+		<flow-ref doc:name="To Validate_ name" doc:id="bdf42a06-634d-4a2d-b3bc-58c1b4e20487" name="validate_name-proto-sf-to-gdsub_flow"/>
 		<error-handler ref="ErrorHandlingError_Handler_continue" />
 	</flow>
-	<flow name="proto-sf-to-gdFlow1(choice-Router)" doc:id="6b7a2683-7e7a-45c5-8213-73373cbe8d1d" >
-		<ee:transform doc:name="Transform Message" doc:id="8700a364-9249-4b53-b48b-621da0067eae" >
+	<sub-flow name="validate_name-proto-sf-to-gdsub_flow" doc:id="94adbf63-e856-4413-9dfa-9df24f555763" >
+		<ee:transform doc:name="Search Folder According String" doc:id="f8c0f945-b51f-4267-b251-99527ebda270" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+
+var firstChar = upper((payload[0].Account.Name)[0 to 0])
+
+---
+if (
+    matches(firstChar, /[A-F]/)
+    or
+    matches(firstChar, /[0-9]/)
+    or
+    matches(firstChar, /[^A-Z0-9]/)
+)
+    Mule::p('AplhabetID.firstfolder')
+else if (matches(firstChar, /[G-O]/))
+    Mule::p('AplhabetID.secondfolder')
+else if (matches(firstChar, /[P-Z]/))
+    Mule::p('AplhabetID.thirdfolder')
+else
+    null]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="AccountName" ><![CDATA[%dw 2.0
 output application/json
 ---
-payload[0].Account.Name]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
-		<set-variable value="#[payload]" doc:name="Account Name" doc:id="fd3eecfe-904a-4f58-8161-9f78bf437334" variableName="AccountName" />
-		<ee:transform doc:name="Transform Message1" doc:id="2cd090ae-9cd3-40f7-8d93-a3922c10de0a" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
+payload[0].Account.Name]]></ee:set-variable>
+				<ee:set-variable variableName="FirstLetter" ><![CDATA[%dw 2.0
 output application/json
 ---
-upper(payload[0])]]></ee:set-payload>
-			</ee:message>
+upper((payload[0].Account.Name)[0 to 0])]]></ee:set-variable>
+			</ee:variables>
 		</ee:transform>
-		<set-variable value="#[payload]" doc:name="First Alphabet" doc:id="45f85305-a8b6-4517-9e5c-50ac082adc7b" variableName="FirstLetter" />
-		<logger level="INFO" doc:name="Logger" doc:id="ab3551b4-d8f4-4e3b-aa89-f77e03b58b9f" message="#[payload]" />
-		<choice doc:name="To Choice the Folder According to Alphabet" doc:id="d607e3d6-2418-4c87-8f9a-9a3228bd87eb" >
-			<when expression='#[["A","B","C","D","E","F"] contains vars.firstLetter]' >
-				<set-variable value="A-F" doc:name="Folder Name (A-F)" doc:id="e6d7300f-f12e-4b38-ad3c-df9d863e5cd2" variableName="FolderName" />
-			</when>
-			<when expression='#[["G","H","I","J","K","L","M","N","O"] contains vars.firstLetter]' >
-				<set-variable value="G-O" doc:name="Folder Name (G-O)" doc:id="1a53309a-a3a0-4d65-9653-bdae849162e2" variableName="FolderName" />
+		<set-variable value="#[payload]" doc:name="Alphabet Id" doc:id="69205d25-e742-484f-95e1-3f4a60ec4dc8" variableName="SubFolderId" />
+		<logger level="INFO" doc:name="Alphabet ID" doc:id="24e02a88-eac4-4b72-9700-50cc3e499ac6" message="#[payload]" />
+		<flow-ref doc:name="getting_Token" doc:id="31cf7e32-f8fe-4dcf-b207-b1cf3038bfe6" name="token-proto-sf-to-gdsub_flow1" />
+	</sub-flow>
+	<sub-flow name="token-proto-sf-to-gdsub_flow1" doc:id="0d4b43c3-91e7-404a-9b14-d3e07b5f1097" >
+		<os:retrieve doc:name="Retrieve Token" doc:id="40362248-b920-4094-aff4-4bf00a22862b" key="googleAccessToken" objectStore="Object_store1" target="accessToken" >
+			<os:default-value ><![CDATA[null]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="91e186d6-01c2-44ec-ae63-64f94a8ec162" >
+			<when expression='#[vars.accessToken != "null"]'>
+				<logger level="INFO" doc:name="Token already exist" doc:id="268d15b3-8466-4e86-94d0-db850823a48f" message='"Token already exist"'/>
 			</when>
 			<otherwise >
-				<set-variable value="P-Z" doc:name=" folder Name (P-Z)" doc:id="f9c9c1d1-3b2d-4379-9bda-9d954ca14c00" variableName="FolderName" />
-			</otherwise>
-		</choice>
-		<flow-ref doc:name="Flow Reference" doc:id="7d1ca80d-4ef4-478d-b7b4-b0062e386eb0" name="proto-sf-to-gdFlow1(Fetch-Token-ID)"/>
-		<error-handler ref="ErrorHandlingError_Handler_continue" />
-	</flow>
-	<flow name="proto-sf-to-gdFlow1(Fetch-Token-ID)" doc:id="c01ec017-bde9-46d5-b5cf-1d389c7b7546" >
-		<os:retrieve doc:name="Retrieve Token" doc:id="248d0fb0-edd4-4d8e-bf2b-8bc1c070716d" key="googleAccessToken" objectStore="Object_store1" target="accessToken">
-			<os:default-value><![CDATA[null]]></os:default-value>
-		</os:retrieve>
-		<choice doc:name="Token Validation" doc:id="18d23771-ba9c-49fe-a7f0-6a57b5aeab87">
-			<when expression='#[vars.accessToken != "null"]'>
-				<try doc:name="Try" doc:id="3f8d13ea-1579-40eb-b31f-6253a7a1fe1e">
-					<logger level="INFO" doc:name="Logger" doc:id="6dd0ab2f-b896-4d31-b1de-84cdbcfaa620" />
-					<http:request doc:name="Fetching Id(salesforceTest)" doc:id="c0d29e0e-9998-4eb9-8a19-8add00dcfdfc" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathMain}">
-						<http:headers><![CDATA[#[%dw 2.0
+				<ee:transform doc:name="Token Config" doc:id="32252888-ec84-4513-b5a8-71d66942734c">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
 output application/java
 ---
 {
-    Authorization: "Bearer " ++ (vars.accessToken),
-    Accept: "application/json"
-}]]]></http:headers>
-						<http:query-params><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    q: "name='" ++ Mule::p("drive.rootFolderName") ++ "'"
-}]]]></http:query-params>
-					</http:request>
-					<error-handler>
-						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f2b7e606-5687-49a5-b782-a6d477ab7c6f">
-							<logger level="INFO" doc:name="Logger" doc:id="a9d32354-8814-4727-94e5-d0ba18505051" message='"error occurs"' />
-							<http:request doc:name="To get Access token" doc:id="2d217f56-217c-433e-b702-8815cb6ac64c" config-ref="HTTP_Request_config_Token" method="POST" path="${GD.TokenPath}">
-								<http:body><![CDATA[#[%dw 2.0
-output application/x-www-form-urlencoded
----
-{
-  client_id: Mule::p('secure::GDaccessTokenCred.client_id'),
-  client_secret: Mule::p('secure::GDaccessTokenCred.client_secret'),
-  refresh_token: Mule::p('secure::GDaccessTokenCred.refresh_token'),
-  grant_type: "refresh_token"
-}]]]></http:body>
-								<http:headers><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    "Content-Type": "application/x-www-form-urlencoded"
-}]]]></http:headers>
-							</http:request>
-							<set-variable value="#[payload.access_token]" doc:name="Access Token" doc:id="61ccc928-a7ea-4615-bd41-f0b835872ca3" variableName="accessToken" />
-							<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="2603e5e0-c0dc-48c5-bc51-c8c3ce1b3c9c" millisBetweenRetries="${UntilSuccess.delay}">
-								<http:request doc:name="Fetching Id(salesforceTest)" doc:id="fbc07194-2cf3-4245-b04f-d1db2cd31ef0" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathMain}">
-								<http:headers><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    Authorization: "Bearer " ++ (vars.accessToken),
-    Accept: "application/json"
-}]]]></http:headers>
-								<http:query-params><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    q: "name='" ++ Mule::p("drive.rootFolderName") ++ "'"
-}]]]></http:query-params>
-							</http:request>
-							</until-successful>
-						</on-error-continue>
-					</error-handler>
-				</try>
-			</when>
-			<otherwise>
-				<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="021d4fe0-7a03-4a8e-bb06-8aeaf9513225" millisBetweenRetries="${UntilSuccess.delay}">
-					<http:request doc:name="To get Access token" doc:id="6d7496b7-9adc-4ffb-b889-6c6cdddcc280" config-ref="HTTP_Request_config_Token" method="POST" path="${GD.TokenPath}">
-					<http:body><![CDATA[#[%dw 2.0
-output application/x-www-form-urlencoded
----
-{
-  client_id: Mule::p('secure::GDaccessTokenCred.client_id'),
-  client_secret: Mule::p('secure::GDaccessTokenCred.client_secret'),
-  refresh_token: Mule::p('secure::GDaccessTokenCred.refresh_token'),
-  grant_type: "refresh_token"
-}]]]></http:body>
-					<http:headers><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    "Content-Type": "application/x-www-form-urlencoded"
-}]]]></http:headers>
-				</http:request>
-				</until-successful>
-				<set-variable value="#[payload.access_token]" doc:name="Access Token" doc:id="555cf6b6-e881-4244-a0bf-479c579beb81" variableName="accessToken" />
-				<logger level="INFO" doc:name="Logger" doc:id="337d7260-2c20-4601-8cca-01c6711c299a" message="#[payload]" />
-				<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="52e5bdac-9693-460f-b809-689630c14228" millisBetweenRetries="${UntilSuccess.delay}">
-					<http:request doc:name="Fetching Id(salesforceTest)" doc:id="4e6d8a9c-8803-441d-81ba-a936e527936c" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathMain}">
-					<http:headers><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    Authorization: "Bearer " ++ (vars.accessToken),
-    Accept: "application/json"
-}]]]></http:headers>
-					<http:query-params><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    q: "name='" ++ Mule::p("drive.rootFolderName") ++ "'"
-}]]]></http:query-params>
-				</http:request>
-				</until-successful>
-			</otherwise>
-		</choice>
-		<set-variable value="#[payload.drives.id]" doc:name="SalesforceTest Id" doc:id="fc181ed4-8ed5-41ee-9c47-49eeb9bdc464" variableName="parentFolderId" />
-		<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="70314706-a826-4a99-a117-452948259d1b" millisBetweenRetries="${UntilSuccess.delay}">
-			<http:request doc:name="Fetching Id(alphabet)" doc:id="15731fce-e546-447b-a608-465cf51ff7b3" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathSub}">
-			<http:headers><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    Authorization: "Bearer " ++ (vars.accessToken),
-    Accept: "application/json"
-}]]]></http:headers>
-			<http:query-params><![CDATA[#[%dw 2.0
-output application/java
----
-{
-    q: "name='" ++ (vars.FolderName default "") ++ "' and '" ++ (vars.parentFolderId[0] default "") ++ "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
-    supportsAllDrives: "true",
-    includeItemsFromAllDrives: "true",
-    fields: "files(id, name)"
-}]]]></http:query-params>
-		</http:request>
-		</until-successful>
-		<logger level="INFO" doc:name="ParentId" doc:id="3fa1b7c8-a5e8-47d1-9fac-8b6304eadeba" message="#[payload]"/>
-		<set-variable value="#[payload.files[0].id]" doc:name="Alphabet Id" doc:id="798ba1ae-51e9-4369-8993-ab8cbaf9dd6f" variableName="SubFolderId" />
-		<os:store doc:name="Store Token" doc:id="ad55eb5f-252f-4726-b6c0-8a432f1f2a2f" key="googleAccessToken" objectStore="Object_store1">
+    method: "POST",
+    path: Mule::p("GD.TokenPath"),
+    headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: write(
+        {
+            client_id: Mule::p("secure::GDaccessTokenCred.client_id"),
+            client_secret: Mule::p("secure::GDaccessTokenCred.client_secret"),
+            refresh_token: Mule::p("secure::GDaccessTokenCred.refresh_token"),
+            grant_type: "refresh_token"
+        },
+        "application/x-www-form-urlencoded"
+    )
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<flow-ref doc:name="Token_generation" doc:id="9c00f719-7bce-48e8-b4d5-9af27e4d5649" name="GoogleDriveSub_Flow1"/>
+				<set-variable value="#[payload.access_token]" doc:name="Access Token" doc:id="07d60a53-7b89-45e3-abf1-8238e46e26a1" variableName="accessToken" />
+				<os:store doc:name="Store Token" doc:id="0ff33ca3-4545-452c-8225-e7bbb2cce85c" key="googleAccessToken" objectStore="Object_store1">
 			<os:value><![CDATA[#[vars.accessToken]]]></os:value>
 		</os:store>
-		<flow-ref doc:name="Flow Reference" doc:id="89414c82-31cc-48ad-9b58-7b511ff88bbf" name="proto-sf-to-gdFlow2(Search-Name-Verify-Insert-a-folder)"/>
-		<error-handler ref="ErrorHandlingError_Handler" />
-	</flow>
-	<flow name="proto-sf-to-gdFlow2(Search-Name-Verify-Insert-a-folder)" doc:id="f1375343-9c3e-4422-b68e-3c15bafb1d28" >
+			</otherwise>
+		</choice>
+		<flow-ref doc:name="create_folder" doc:id="0d167371-a4a1-4eea-a3ba-31555842024c" name="create_folder-proto-sf-to-gdsub_flow2" />
+	</sub-flow>
+	<sub-flow name="create_folder-proto-sf-to-gdsub_flow2" doc:id="a9725cb6-292c-4443-946e-01aa67eddacd" >
+		<ee:transform doc:name="Check Account Name Folder" doc:id="ee0304f4-fa73-4be4-a776-5fffa6c2d491" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    method: "GET",
+    path: Mule::p("GD.FilePathSub"),
+    queryParams: {
+    q: "name='" ++ (vars.AccountName) ++
+       "' and mimeType='application/vnd.google-apps.folder' and '" ++
+       vars.SubFolderId ++
+       "' in parents and trashed=false",
+    fields: "files(id,name)",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true"
+},
+    headers: {
+        Authorization: "Bearer " ++ vars.accessToken,
+        "Content-Type": "application/json"
+    }
+
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="File_Creation" doc:id="ef5a1614-421a-4739-b4f7-fb0223404f95" name="GoogleDriveSub_Flow"/>
+		<logger level="INFO" doc:name="Check Name" doc:id="8ea172f0-9167-4528-9e3f-9a300f93f900" message="#[payload]" />
+		<choice doc:name="TO Verify that the Account Exist or not" doc:id="3e010719-29a7-43d2-9f28-da52af73cca3" >
+			<when expression="#[sizeOf(payload.files) &gt; 0]" >
+				<logger level="INFO" doc:name="If already exist" doc:id="e3d55a4b-c006-4208-a99b-daa6fa3a236e" message='"Account Already Exist"' />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Create Account Folder" doc:id="b3438606-d68e-4c66-9b7f-0ba294623ffb">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    method: "POST",
+    path: Mule::p("GD.FilePathSub"),
+    queryParams: {
+        supportsAllDrives: "true"
+    },
+    headers: {
+        Authorization: "Bearer " ++ vars.accessToken,
+        "Content-Type": "application/json"
+    },
+    body: write(
+        {
+            name: vars.AccountName,
+            mimeType: "application/vnd.google-apps.folder",
+            parents: [vars.SubFolderId]
+        },
+        "application/json"
+    )
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<flow-ref doc:name="File_Creation" doc:id="50dbf16b-7586-46f8-b8fc-b77aa029fd1e" name="GoogleDriveSub_Flow"/>
+				<set-variable value="#[payload.id]" doc:name="Set Variable" doc:id="c2e03460-c6b5-44cc-8404-069a222a0ab5" variableName="accountFolderId"/>
+				<ee:transform doc:name="Create Opportunity Folder" doc:id="c7bddefa-27b3-4935-a7bc-39483d54bf27">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    method: "POST",
+    path: Mule::p("GD.FilePathSub"),
+    queryParams: {
+        supportsAllDrives: "true"
+    },
+    headers: {
+        Authorization: "Bearer " ++ vars.accessToken,
+        "Content-Type": "application/json"
+    },
+    body: write(
+        {
+            name: Mule::p("drive.opportunityFolder"),
+            mimeType: "application/vnd.google-apps.folder",
+            parents: [vars.accountFolderId]
+        },
+        "application/json"
+    )
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+					</ee:variables>
+				</ee:transform>
+				<flow-ref doc:name="File_Creation" doc:id="77f687ab-7e74-4587-8f32-274cca46cbba" name="GoogleDriveSub_Flow"/>
+				<ee:transform doc:name="Create Project Folder" doc:id="6e37f1f9-d02d-4843-aa66-11ed23f22ab5">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+    method: "POST",
+    path: Mule::p("GD.FilePathSub"),
+    queryParams: {
+        supportsAllDrives: "true"
+        },
+    headers: {
+        Authorization: "Bearer " ++ vars.accessToken,
+        "Content-Type": "application/json"
+    },
+    body: write(
+        {
+            name: Mule::p("drive.projectFolder"),
+            mimeType: "application/vnd.google-apps.folder",
+            parents: [vars.accountFolderId]
+        },
+        "application/json"
+    )
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<flow-ref doc:name="File_Creation" doc:id="b4f6be78-9dc3-4667-971b-5d5122d01f41" name="GoogleDriveSub_Flow"/>
+				<logger level="INFO" doc:name="Folder Created" doc:id="882806ea-e7a3-453e-a1f1-b90f808d2940" message='"Folder Created"'/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<!-- [STUDIO:"proto-sf-to-gdFlow2(Search-Name-Verify-Insert-a-folder)"]<flow name="proto-sf-to-gdFlow2(Search-Name-Verify-Insert-a-folder)" doc:id="f1375343-9c3e-4422-b68e-3c15bafb1d28" >
 		<http:request doc:name="Search  Name Account(Project). " doc:id="b14fdc62-9ef1-4501-bef6-c68cfbd3d18d" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathSub}" >
 			<http:headers ><![CDATA[#[%dw 2.0
 output application/java
----
+&#45;&#45;-
 {
     Authorization: "Bearer " ++ vars.accessToken,
     Accept: "application/json"
-}]]]></http:headers>
+}&#93;&#93;&#93;></http:headers>
 			<http:query-params ><![CDATA[#[%dw 2.0
 output application/java
----
+&#45;&#45;-
 {
     q: "name='" ++ (vars.AccountName) ++
        "' and mimeType='application/vnd.google-apps.folder' and '" ++
@@ -224,86 +248,86 @@ output application/java
     fields: "files(id,name)",
     supportsAllDrives: "true",
     includeItemsFromAllDrives: "true"
-}]]]></http:query-params>
+}&#93;&#93;&#93;></http:query-params>
 		</http:request>
-		<logger level="INFO" doc:name="Logger" doc:id="235f755c-d052-4c9c-a5c8-9f3c551556ce" message="#[payload]"/>
+		<logger level="INFO" doc:name="Logger" doc:id="235f755c-d052-4c9c-a5c8-9f3c551556ce" message="#[payload&#93;"/>
 		<choice doc:name="TO Verify that the Account Exist or not" doc:id="500a372f-fb09-4fb7-9e67-bfa0211b04e9" >
-			<when expression="#[sizeOf(payload.files) &gt; 0]" >
+			<when expression="#[sizeOf(payload.files) &gt; 0&#93;" >
 				<logger level="INFO" doc:name="If already exist" doc:id="70c251fd-3ebc-42ae-96a6-c95ca4f469c5" message='"Account Already Exist"'/>
 			</when>
 			<otherwise >
 				<http:request doc:name="creating a Account (Project)" doc:id="89c09c3c-3350-4da8-a0d3-d3cf53a3cfb6" config-ref="HTTP_Request_config2_Folders" method="POST" path="${GD.FilePathSub}" >
 					<http:body ><![CDATA[#[%dw 2.0
 output application/json
----
+&#45;&#45;-
 {
   "name": vars.AccountName ,
   "mimeType": "application/vnd.google-apps.folder",
   "parents": [
     (vars.SubFolderId default "")
-  ]
-}]]]></http:body>
+  &#93;
+}&#93;&#93;&#93;></http:body>
 					<http:headers ><![CDATA[#[%dw 2.0
 output application/java
----
+&#45;&#45;-
 {
     Authorization: "Bearer " ++ vars.accessToken,
     Accept: "application/json"
-}]]]></http:headers>
+}&#93;&#93;&#93;></http:headers>
 					<http:query-params ><![CDATA[#[output application/java
----
+&#45;&#45;-
 {
 	"supportsAllDrives" : "true"
-}]]]></http:query-params>
+}&#93;&#93;&#93;></http:query-params>
 				</http:request>
-				<set-variable value="#[payload.id]" doc:name="Account Folder Id" doc:id="dbf412a6-6885-4ea6-8fc7-c374b45a9fc4" variableName="accountFolderId" />
+				<set-variable value="#[payload.id&#93;" doc:name="Account Folder Id" doc:id="dbf412a6-6885-4ea6-8fc7-c374b45a9fc4" variableName="accountFolderId" />
 				<http:request doc:name="To Create a Opportunity" doc:id="38911441-064e-4130-923b-6d04093acda8" config-ref="HTTP_Request_config2_Folders" method="POST" path="${GD.FilePathSub}" >
 					<http:body ><![CDATA[#[%dw 2.0
 output application/json
----
+&#45;&#45;-
 {
   name: Mule::p('drive.opportunityFolder'),
   mimeType: "application/vnd.google-apps.folder",
-  parents: [vars.accountFolderId]
-}]]]></http:body>
+  parents: [vars.accountFolderId&#93;
+}&#93;&#93;&#93;></http:body>
 					<http:headers ><![CDATA[#[%dw 2.0
 output application/java
----
+&#45;&#45;-
 {
     Authorization: "Bearer " ++ vars.accessToken,
     Accept: "application/json"
-}]]]></http:headers>
+}&#93;&#93;&#93;></http:headers>
 					<http:query-params ><![CDATA[#[output application/java
----
+&#45;&#45;-
 {
 	"supportsAllDrives" : "true"
-}]]]></http:query-params>
+}&#93;&#93;&#93;></http:query-params>
 				</http:request>
 				<http:request doc:name="To Create a Project" doc:id="c26ccfde-6c99-4ff3-a751-02da3c0e4734" config-ref="HTTP_Request_config2_Folders" method="POST" path="${GD.FilePathSub}" >
 					<http:body ><![CDATA[#[%dw 2.0
 output application/json
----
+&#45;&#45;-
 {
   name: Mule::p('drive.projectFolder'),
   mimeType: "application/vnd.google-apps.folder",
-  parents: [vars.accountFolderId]
-}]]]></http:body>
+  parents: [vars.accountFolderId&#93;
+}&#93;&#93;&#93;></http:body>
 					<http:headers ><![CDATA[#[output application/java
----
+&#45;&#45;-
 {
     Authorization: "Bearer " ++ vars.accessToken,
     Accept: "application/json"
-}]]]></http:headers>
+}&#93;&#93;&#93;></http:headers>
 					<http:query-params ><![CDATA[#[output application/java
----
+&#45;&#45;-
 {
 	"supportsAllDrives" : "true"
-}]]]></http:query-params>
+}&#93;&#93;&#93;></http:query-params>
 				</http:request>
 			</otherwise>
 		</choice>
 		<error-handler ref="ErrorHandlingError_Handler" />
-	</flow>
+	</flow> [STUDIO] -->
 	<!-- [STUDIO:"proto-sf-to-gdFlow"]<flow name="proto-sf-to-gdFlow" doc:id="18f3394e-a974-43df-9cbb-f78bcd9542b1" >
 		<http:listener doc:name="Listener" doc:id="d3309682-66fc-4e71-bed2-0246b4f3eed4" config-ref="HTTP_Listener_config" path="mayankkk"/>
 		<http:request doc:name="Fetching the Id of that Particular Alphabet Folder" doc:id="2e621c10-f11a-4397-a12c-4af7e96fe984" config-ref="HTTP_Request_config1" path="/drive/v3/drives" >
@@ -566,5 +590,174 @@ output application/java
 		<http:listener doc:name="Listener" doc:id="fb376e91-1f27-40e2-96a8-59af3e8df6ae" config-ref="HTTP_Listener_config"/>
 		<google-drive:get-drives doc:name="Drive drives list" doc:id="bce383c9-9e73-4095-a05c-a0494dabaf65" config-ref="Google_Drive_Connector_Config"/>
 		<google-drive:get-files doc:name="Drive files list" doc:id="ce55f85c-feef-46d0-bc11-0d95de82e9dd" config-ref="Google_Drive_Connector_Config"/>
+	</flow> [STUDIO] -->
+	<!-- [STUDIO:"proto-sf-to-gd-privateFlow"]<flow name="proto-sf-to-gd-privateFlow" doc:id="6b7a2683-7e7a-45c5-8213-73373cbe8d1d" >
+		<ee:transform doc:name="Transform Message" doc:id="8700a364-9249-4b53-b48b-621da0067eae" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+payload[0&#93;.Account.Name&#93;&#93;></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload&#93;" doc:name="Account Name" doc:id="fd3eecfe-904a-4f58-8161-9f78bf437334" variableName="AccountName" />
+		<ee:transform doc:name="Transform Message1" doc:id="2cd090ae-9cd3-40f7-8d93-a3922c10de0a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+upper(payload[0&#93;)&#93;&#93;></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload&#93;" doc:name="First Alphabet" doc:id="45f85305-a8b6-4517-9e5c-50ac082adc7b" variableName="FirstLetter" />
+		<logger level="INFO" doc:name="Logger" doc:id="ab3551b4-d8f4-4e3b-aa89-f77e03b58b9f" message="#[payload&#93;" />
+		<choice doc:name="To Choice the Folder According to Alphabet" doc:id="d607e3d6-2418-4c87-8f9a-9a3228bd87eb" >
+			<when expression='#[["A","B","C","D","E","F"&#93; contains vars.firstLetter&#93;' >
+				<set-variable value="A-F" doc:name="Folder Name (A-F)" doc:id="e6d7300f-f12e-4b38-ad3c-df9d863e5cd2" variableName="FolderName" />
+			</when>
+			<when expression='#[["G","H","I","J","K","L","M","N","O"&#93; contains vars.firstLetter&#93;' >
+				<set-variable value="G-O" doc:name="Folder Name (G-O)" doc:id="1a53309a-a3a0-4d65-9653-bdae849162e2" variableName="FolderName" />
+			</when>
+			<otherwise >
+				<set-variable value="P-Z" doc:name=" folder Name (P-Z)" doc:id="f9c9c1d1-3b2d-4379-9bda-9d954ca14c00" variableName="FolderName" />
+			</otherwise>
+		</choice>
+		<flow-ref doc:name="Flow Reference" doc:id="7d1ca80d-4ef4-478d-b7b4-b0062e386eb0" name="proto-sf-to-gdFlow1(Fetch-Token-ID)"/>
+		<error-handler ref="ErrorHandlingError_Handler_continue" />
+	</flow> [STUDIO] -->
+	<!-- [STUDIO:"proto-sf-to-gdFlow1(Fetch-Token-ID)"]<flow name="proto-sf-to-gdFlow1(Fetch-Token-ID)" doc:id="c01ec017-bde9-46d5-b5cf-1d389c7b7546" >
+		<os:retrieve doc:name="Retrieve Token" doc:id="248d0fb0-edd4-4d8e-bf2b-8bc1c070716d" key="googleAccessToken" objectStore="Object_store1" target="accessToken">
+			<os:default-value><![CDATA[null&#93;&#93;></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Token Validation" doc:id="18d23771-ba9c-49fe-a7f0-6a57b5aeab87">
+			<when expression='#[vars.accessToken != "null"&#93;'>
+				<try doc:name="Try" doc:id="3f8d13ea-1579-40eb-b31f-6253a7a1fe1e">
+					<logger level="INFO" doc:name="Logger" doc:id="6dd0ab2f-b896-4d31-b1de-84cdbcfaa620" />
+					<http:request doc:name="Fetching Id(salesforceTest)" doc:id="c0d29e0e-9998-4eb9-8a19-8add00dcfdfc" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathMain}">
+						<http:headers><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    Authorization: "Bearer " ++ (vars.accessToken),
+    Accept: "application/json"
+}&#93;&#93;&#93;></http:headers>
+						<http:query-params><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    q: "name='" ++ Mule::p("drive.rootFolderName") ++ "'"
+}&#93;&#93;&#93;></http:query-params>
+					</http:request>
+					<error-handler>
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f2b7e606-5687-49a5-b782-a6d477ab7c6f">
+							<logger level="INFO" doc:name="Logger" doc:id="a9d32354-8814-4727-94e5-d0ba18505051" message='"error occurs"' />
+							<http:request doc:name="To get Access token" doc:id="2d217f56-217c-433e-b702-8815cb6ac64c" config-ref="HTTP_Request_config_Token" method="POST" path="${GD.TokenPath}">
+								<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+&#45;&#45;-
+{
+  client_id: Mule::p('secure::GDaccessTokenCred.client_id'),
+  client_secret: Mule::p('secure::GDaccessTokenCred.client_secret'),
+  refresh_token: Mule::p('secure::GDaccessTokenCred.refresh_token'),
+  grant_type: "refresh_token"
+}&#93;&#93;&#93;></http:body>
+								<http:headers><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    "Content-Type": "application/x-www-form-urlencoded"
+}&#93;&#93;&#93;></http:headers>
+							</http:request>
+							<set-variable value="#[payload.access_token&#93;" doc:name="Access Token" doc:id="61ccc928-a7ea-4615-bd41-f0b835872ca3" variableName="accessToken" />
+							<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="2603e5e0-c0dc-48c5-bc51-c8c3ce1b3c9c" millisBetweenRetries="${UntilSuccess.delay}">
+								<http:request doc:name="Fetching Id(salesforceTest)" doc:id="fbc07194-2cf3-4245-b04f-d1db2cd31ef0" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathMain}">
+								<http:headers><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    Authorization: "Bearer " ++ (vars.accessToken),
+    Accept: "application/json"
+}&#93;&#93;&#93;></http:headers>
+								<http:query-params><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    q: "name='" ++ Mule::p("drive.rootFolderName") ++ "'"
+}&#93;&#93;&#93;></http:query-params>
+							</http:request>
+							</until-successful>
+						</on-error-continue>
+					</error-handler>
+				</try>
+			</when>
+			<otherwise>
+				<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="021d4fe0-7a03-4a8e-bb06-8aeaf9513225" millisBetweenRetries="${UntilSuccess.delay}">
+					<http:request doc:name="To get Access token" doc:id="6d7496b7-9adc-4ffb-b889-6c6cdddcc280" config-ref="HTTP_Request_config_Token" method="POST" path="${GD.TokenPath}">
+					<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+&#45;&#45;-
+{
+  client_id: Mule::p('secure::GDaccessTokenCred.client_id'),
+  client_secret: Mule::p('secure::GDaccessTokenCred.client_secret'),
+  refresh_token: Mule::p('secure::GDaccessTokenCred.refresh_token'),
+  grant_type: "refresh_token"
+}&#93;&#93;&#93;></http:body>
+					<http:headers><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    "Content-Type": "application/x-www-form-urlencoded"
+}&#93;&#93;&#93;></http:headers>
+				</http:request>
+				</until-successful>
+				<set-variable value="#[payload.access_token&#93;" doc:name="Access Token" doc:id="555cf6b6-e881-4244-a0bf-479c579beb81" variableName="accessToken" />
+				<logger level="INFO" doc:name="Logger" doc:id="337d7260-2c20-4601-8cca-01c6711c299a" message="#[payload&#93;" />
+				<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="52e5bdac-9693-460f-b809-689630c14228" millisBetweenRetries="${UntilSuccess.delay}">
+					<http:request doc:name="Fetching Id(salesforceTest)" doc:id="4e6d8a9c-8803-441d-81ba-a936e527936c" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathMain}">
+					<http:headers><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    Authorization: "Bearer " ++ (vars.accessToken),
+    Accept: "application/json"
+}&#93;&#93;&#93;></http:headers>
+					<http:query-params><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    q: "name='" ++ Mule::p("drive.rootFolderName") ++ "'"
+}&#93;&#93;&#93;></http:query-params>
+				</http:request>
+				</until-successful>
+			</otherwise>
+		</choice>
+		<set-variable value="#[payload.drives.id&#93;" doc:name="SalesforceTest Id" doc:id="fc181ed4-8ed5-41ee-9c47-49eeb9bdc464" variableName="parentFolderId" />
+		<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="70314706-a826-4a99-a117-452948259d1b" millisBetweenRetries="${UntilSuccess.delay}">
+			<http:request doc:name="Fetching Id(alphabet)" doc:id="15731fce-e546-447b-a608-465cf51ff7b3" config-ref="HTTP_Request_config2_Folders" path="${GD.FilePathSub}">
+			<http:headers><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    Authorization: "Bearer " ++ (vars.accessToken),
+    Accept: "application/json"
+}&#93;&#93;&#93;></http:headers>
+			<http:query-params><![CDATA[#[%dw 2.0
+output application/java
+&#45;&#45;-
+{
+    q: "name='" ++ (vars.FolderName default "") ++ "' and '" ++ (vars.parentFolderId[0&#93; default "") ++ "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+    fields: "files(id, name)"
+}&#93;&#93;&#93;></http:query-params>
+		</http:request>
+		</until-successful>
+		<logger level="INFO" doc:name="ParentId" doc:id="3fa1b7c8-a5e8-47d1-9fac-8b6304eadeba" message="#[payload&#93;"/>
+		<set-variable value="#[payload.files[0&#93;.id&#93;" doc:name="Alphabet Id" doc:id="798ba1ae-51e9-4369-8993-ab8cbaf9dd6f" variableName="SubFolderId" />
+		<os:store doc:name="Store Token" doc:id="ad55eb5f-252f-4726-b6c0-8a432f1f2a2f" key="googleAccessToken" objectStore="Object_store1">
+			<os:value><![CDATA[#[vars.accessToken&#93;&#93;&#93;></os:value>
+		</os:store>
+		<flow-ref doc:name="Flow Reference" doc:id="89414c82-31cc-48ad-9b58-7b511ff88bbf" name="proto-sf-to-gdFlow2(Search-Name-Verify-Insert-a-folder)"/>
+		<error-handler ref="ErrorHandlingError_Handler" />
 	</flow> [STUDIO] -->
 </mule>

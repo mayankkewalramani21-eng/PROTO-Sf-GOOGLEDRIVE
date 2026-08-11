@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<sub-flow name="GoogleDriveSub_Flow" doc:id="24f5e03b-8683-4320-9fff-16c64b679a34" >
+		<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="6e1b79d3-23e1-46f4-9d11-ccfd92e71ac6" millisBetweenRetries="${UntilSuccess.delay}">
+			<http:request doc:name="File creation" doc:id="51e79dd9-c3da-44f2-a776-0fdd7117e42b" config-ref="HTTP_Request_config2_Folders" method="#[payload.method]" path="#[payload.path]" >
+				<http:body ><![CDATA[#[payload.body]]]></http:body>
+				<http:headers ><![CDATA[#[payload.headers]]]></http:headers>
+				<http:query-params ><![CDATA[#[payload.queryParams]]]></http:query-params>
+			</http:request>
+		</until-successful>
+	</sub-flow>
+	<sub-flow name="GoogleDriveSub_Flow1" doc:id="54362975-6846-440c-930e-3f5283027741" >
+		<until-successful maxRetries="${UntilSuccess.maxRetries}" doc:name="Until Successful" doc:id="61ec7c13-aac1-4694-b6e7-700856411231" millisBetweenRetries="${UntilSuccess.delay}">
+			<http:request doc:name="TokenGenerator" doc:id="d3213d17-334b-4f88-8355-6e4cc874fd85" config-ref="HTTP_Request_config_Token" method="#[payload.method]" path="#[payload.path]">
+				<http:body ><![CDATA[#[payload.body]]]></http:body>
+				<http:headers ><![CDATA[#[payload.headers]]]></http:headers>
+			</http:request>
+		</until-successful>
+	</sub-flow>
+</mule>

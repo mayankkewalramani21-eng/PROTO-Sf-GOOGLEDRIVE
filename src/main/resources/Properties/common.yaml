@@ -11,11 +11,7 @@ UntilSuccess:
   maxRetries: "3"
   delay: "6000"  
 
-# Name of the folder
-drive:
-  rootFolderName: "SalesforceTest"
-  opportunityFolder: "OPPORTUNITY"
-  projectFolder: "PROJECT"   
+  
   
 # Object store 
 objectstore:

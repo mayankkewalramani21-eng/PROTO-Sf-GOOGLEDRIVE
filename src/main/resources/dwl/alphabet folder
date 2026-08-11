@@ -1,0 +1,20 @@
+%dw 2.0
+output application/java
+
+var firstChar = upper((payload[0].Account.Name)[0 to 0])
+
+---
+if (
+    matches(firstChar, /[A-F]/)
+    or
+    matches(firstChar, /[0-9]/)
+    or
+    matches(firstChar, /[^A-Z0-9]/)
+)
+    "1L8iJUnxBcjXwqLpM5WMLxwqj8JtzzQlh"
+else if (matches(firstChar, /[G-O]/))
+    "1dS31wxJaHMyMyz6KII-EV5n85-Bap46I"
+else if (matches(firstChar, /[P-Z]/))
+    "11nthPazHGYs7L_JrvKAfvpgPrCuj0Z7E"
+else
+    null
